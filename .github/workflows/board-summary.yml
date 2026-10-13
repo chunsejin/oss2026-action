@@ -1,0 +1,40 @@
+name: Daily board summary
+
+on:
+  schedule:
+    # 00:00 UTC = 09:00 Asia/Seoul
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.3.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+      - name: Summarize recent notices
+        run: python summarize_board.py --limit 10 --output board-summary.md
+      - name: Publish job summary
+        run: cat board-summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload summary
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: board-summary
+          path: board-summary.md
+          if-no-files-found: error
+          retention-days: 14
